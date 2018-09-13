@@ -14,11 +14,23 @@ public class Info : IHttpHandler {
 
     if (context.Request.HttpMethod == "GET")
     {
+      StringBuilder h = new StringBuilder();
+
+      h.AppendLine("<!DOCTYPE html>");
+      h.AppendLine("<html>");
+      h.AppendLine("<head>");
+      h.AppendLine("<title>Sample Sheet</title>");
+      h.AppendLine("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
+      h.AppendLine("</head>");
+      h.AppendLine("<body>");
+      h.AppendFormat("<p>ID: {0}</p>", id);
+      h.AppendLine();
+      h.AppendLine(ListSheets(id));
+      h.AppendLine("</body>");
+      h.AppendLine("</html>");
+
       context.Response.ContentType = "text/html";
-      context.Response.Write("<!DOCTYPE html><html><head><title>Sample Sheet</title><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head><body>")
-      context.Response.Write("<p>ID: " + id + "</p>");
-      ListSheets(id);
-      context.Response.Write("</body></html>")
+      context.Response.Write(h.ToString());
     }
     else if (context.Request.HttpMethod == "POST")
     {
@@ -34,123 +46,123 @@ public class Info : IHttpHandler {
       context.Response.Write("ID: " + id + " ");
 
       SaveSheet(o);
-}
+    }
   }
 
   public bool IsReusable {
-  get {
-    return false;
+    get {
+      return false;
+    }
   }
-}
-private void ListSheets(string id)
-{
-  string name = "SHSDB";
-  StringBuilder h = new StringBuilder();
-
-  if (ConfigurationManager.ConnectionStrings[name] != null)
+  private string ListSheets(string id)
   {
-    string cnnStr = ConfigurationManager.ConnectionStrings[name].ConnectionString;
-    DbProviderFactory factory = DbProviderFactories.GetFactory(ConfigurationManager.ConnectionStrings[name].ProviderName);
+    string name = "SHSDB";
+    StringBuilder h = new StringBuilder();
 
-    using (DbConnection cnn = factory.CreateConnection())
+    if (ConfigurationManager.ConnectionStrings[name] != null)
     {
-      cnn.ConnectionString = cnnStr;
+      string cnnStr = ConfigurationManager.ConnectionStrings[name].ConnectionString;
+      DbProviderFactory factory = DbProviderFactories.GetFactory(ConfigurationManager.ConnectionStrings[name].ProviderName);
 
-      using (DbCommand cmd = cnn.CreateCommand())
+      using (DbConnection cnn = factory.CreateConnection())
       {
-        cmd.CommandType = System.Data.CommandType.Text;
-        cmd.CommandText = "SELECT * FROM dbo.sheet";
-        cmd.CommandTimeout = cnn.ConnectionTimeout;
+        cnn.ConnectionString = cnnStr;
 
-        cnn.Open();
-        DbDataReader reader = cmd.ExecuteReader();
-
-        if (reader.HasRows)
+        using (DbCommand cmd = cnn.CreateCommand())
         {
-          h.AppendLine("<table border=\"1\">");
-          h.AppendLine("<tr><th>Sheet Name</th><th>Created</th></tr>");
+          cmd.CommandType = System.Data.CommandType.Text;
+          cmd.CommandText = "SELECT * FROM dbo.sheet";
+          cmd.CommandTimeout = cnn.ConnectionTimeout;
 
-          while (reader.Read())
+          cnn.Open();
+          DbDataReader reader = cmd.ExecuteReader();
+
+          if (reader.HasRows)
           {
-            sheetInfo o = FillSheetInfo(reader);
-            h.Append("<tr>");
-            h.AppendFormat("<td>{0}</td><td>{1:d}</td>", o.SheetId, o.DateCreate);
-            h.AppendLine("</tr>");
+            h.AppendLine("<table border=\"1\">");
+            h.AppendLine("<tr><th>Sheet Name</th><th>Created</th></tr>");
+
+            while (reader.Read())
+            {
+              sheetInfo o = FillSheetInfo(reader);
+              h.Append("<tr>");
+              h.AppendFormat("<td>{0}</td><td>{1:d}</td>", o.SheetId, o.DateCreate);
+              h.AppendLine("</tr>");
+            }
+            h.AppendLine("</table>");
           }
-          h.AppendLine("</table>");
+          cnn.Close();
         }
-        cnn.Close();
       }
     }
-    HttpContext.Current.Response.Write(h.ToString());
+    return h.ToString();
   }
-}
-private void SaveSheet(sheetInfo o)
-{
-  int affected = 0;
-  string name = "SHSDB";
-
-  if (ConfigurationManager.ConnectionStrings[name] != null)
+  private void SaveSheet(sheetInfo o)
   {
-    string cnnStr = ConfigurationManager.ConnectionStrings[name].ConnectionString;
-    DbProviderFactory factory = DbProviderFactories.GetFactory(ConfigurationManager.ConnectionStrings[name].ProviderName);
+    int affected = 0;
+    string name = "SHSDB";
 
-    using (DbConnection cnn = factory.CreateConnection())
+    if (ConfigurationManager.ConnectionStrings[name] != null)
     {
-      cnn.ConnectionString = cnnStr;
+      string cnnStr = ConfigurationManager.ConnectionStrings[name].ConnectionString;
+      DbProviderFactory factory = DbProviderFactories.GetFactory(ConfigurationManager.ConnectionStrings[name].ProviderName);
 
-      using (DbCommand cmd = cnn.CreateCommand())
+      using (DbConnection cnn = factory.CreateConnection())
       {
-        cmd.CommandType = System.Data.CommandType.Text;
-        cmd.CommandText = "INSERT INTO dbo.sheet (SheetID, DateCreated, SheetJson) VALUES(@SheetID, @DateCreated, @SheetJson)";
-        cmd.CommandTimeout = cnn.ConnectionTimeout;
-        cmd.Parameters.Add(AddWithValue(cmd, "@SheetID", o.SheetId));
-        cmd.Parameters.Add(AddWithValue(cmd, "@DateCreated", o.DateCreate));
-        cmd.Parameters.Add(AddWithValue(cmd, "@SheetJson", o.SheetJson));
+        cnn.ConnectionString = cnnStr;
 
-        cnn.Open();
-        affected = cmd.ExecuteNonQuery();
-        cnn.Close();
+        using (DbCommand cmd = cnn.CreateCommand())
+        {
+          cmd.CommandType = System.Data.CommandType.Text;
+          cmd.CommandText = "INSERT INTO dbo.sheet (SheetID, DateCreated, SheetJson) VALUES(@SheetID, @DateCreated, @SheetJson)";
+          cmd.CommandTimeout = cnn.ConnectionTimeout;
+          cmd.Parameters.Add(AddWithValue(cmd, "@SheetID", o.SheetId));
+          cmd.Parameters.Add(AddWithValue(cmd, "@DateCreated", o.DateCreate));
+          cmd.Parameters.Add(AddWithValue(cmd, "@SheetJson", o.SheetJson));
+
+          cnn.Open();
+          affected = cmd.ExecuteNonQuery();
+          cnn.Close();
+        }
       }
+      HttpContext.Current.Response.Write("Saved " + affected.ToString() + " items.");
     }
-    HttpContext.Current.Response.Write("Saved " + affected.ToString() + " items.");
   }
-}
-private DbParameter AddWithValue(DbCommand cmd, string name, object value)
-{
-  DbParameter p = cmd.CreateParameter();
-  p.Direction = System.Data.ParameterDirection.Input;
-  p.ParameterName = name;
-  p.Value = value;
-  //p.DbType = System.Data.DbType.DateTime;
-
-  return p;
-}
-private sheetInfo FillSheetInfo(DbDataReader reader)
-{
-  sheetInfo o = new sheetInfo();
-
-  for (int index = 0; index < reader.FieldCount; index++)
+  private DbParameter AddWithValue(DbCommand cmd, string name, object value)
   {
-    if (!reader.IsDBNull(index))
+    DbParameter p = cmd.CreateParameter();
+    p.Direction = System.Data.ParameterDirection.Input;
+    p.ParameterName = name;
+    p.Value = value;
+    //p.DbType = System.Data.DbType.DateTime;
+
+    return p;
+  }
+  private sheetInfo FillSheetInfo(DbDataReader reader)
+  {
+    sheetInfo o = new sheetInfo();
+
+    for (int index = 0; index < reader.FieldCount; index++)
     {
-      switch (reader.GetName(index))
+      if (!reader.IsDBNull(index))
       {
-        case "SheetID":
-          o.SheetId = reader.GetString(index);
-          break;
-        case "DateCreate":
-          o.DateCreate = reader.GetDateTime(index);
-          break;
-        case "SheetJson":
-          o.SheetJson = reader.GetString(index);
-          break;
+        switch (reader.GetName(index))
+        {
+          case "SheetID":
+            o.SheetId = reader.GetString(index);
+            break;
+          case "DateCreate":
+            o.DateCreate = reader.GetDateTime(index);
+            break;
+          case "SheetJson":
+            o.SheetJson = reader.GetString(index);
+            break;
+        }
       }
     }
-  }
 
-  return o;
-}
+    return o;
+  }
 }
 
 public class sheetInfo
