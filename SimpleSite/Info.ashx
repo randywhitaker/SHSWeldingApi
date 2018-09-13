@@ -15,9 +15,10 @@ public class Info : IHttpHandler {
     if (context.Request.HttpMethod == "GET")
     {
       context.Response.ContentType = "text/html";
+      context.Response.Write("<!DOCTYPE html><html><head><title>Sample Sheet</title><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head><body>")
       context.Response.Write("<p>ID: " + id + "</p>");
-
       ListSheets(id);
+      context.Response.Write("</body></html>")
     }
     else if (context.Request.HttpMethod == "POST")
     {
